@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PortfolioService.Data;
 using PortfolioService.DTOs.Post;
+using PortfolioService.Filters;
 
 namespace PortfolioService.Controllers
 {
@@ -55,6 +56,7 @@ namespace PortfolioService.Controllers
             }
         }
 
+        [LocalOnly]
         private async Task<IActionResult> GetAllVisiblePostListings()
         {
             try
@@ -96,8 +98,13 @@ namespace PortfolioService.Controllers
                     return NotFound(new { message = "Post not found." });
                 }
 
-                var postDto = _mapper.Map<PostDto>(post);
+                Task.Delay(TimeSpan.FromMinutes(10)).GetAwaiter().OnCompleted(() =>
+                {
+                    post.Views += 1;
+                    _context.SaveChangesAsync();
+                });
 
+                var postDto = _mapper.Map<PostDto>(post);
                 return Ok(postDto);
             }
             catch (Exception e)
@@ -129,8 +136,13 @@ namespace PortfolioService.Controllers
                     return NotFound(new { message = "Post not found." });
                 }
 
-                var postDto = _mapper.Map<PostDto>(post);
+                Task.Delay(TimeSpan.FromMinutes(10)).GetAwaiter().OnCompleted(() =>
+                {
+                    post.Views += 1;
+                    _context.SaveChangesAsync();
+                });
 
+                var postDto = _mapper.Map<PostDto>(post);
                 return Ok(postDto);
             }
             catch (Exception e)
