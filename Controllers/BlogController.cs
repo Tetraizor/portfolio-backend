@@ -21,6 +21,7 @@ namespace PortfolioService.Controllers
         }
 
         [HttpGet]
+        [LocalOnly]
         public async Task<IActionResult> Get()
         {
             var service = Request.Query["service"].ToString();
