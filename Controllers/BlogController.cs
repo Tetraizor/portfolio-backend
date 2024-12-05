@@ -33,7 +33,7 @@ namespace PortfolioService.Controllers
                 case "getAllVisiblePostListings":
                     return await GetAllVisiblePostListings();
                 case "getPostById":
-                    var postId = Request.Query["postId"].ToString();
+                    var postId = Request.Query["post_id"].ToString();
 
                     if (string.IsNullOrEmpty(postId))
                     {
@@ -42,7 +42,7 @@ namespace PortfolioService.Controllers
 
                     return await GetPostById(postId);
                 case "getPostByUrlString":
-                    var urlString = Request.Query["urlString"].ToString();
+                    var urlString = Request.Query["url_string"].ToString();
 
                     if (string.IsNullOrEmpty(urlString))
                     {
