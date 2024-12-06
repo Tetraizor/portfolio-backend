@@ -14,7 +14,7 @@ public class FeaturedController : Controller
         _context = context;
     }
 
-    [HttpGet]
+    [HttpGet("getAllFeaturedItems")]
     public async Task<IActionResult> GetFeaturedItems()
     {
         var posts = await _context.FeaturedItems.ToListAsync();
