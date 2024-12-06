@@ -4,162 +4,265 @@ using Microsoft.EntityFrameworkCore;
 using PortfolioService.Data;
 using PortfolioService.DTOs.Post;
 using PortfolioService.Filters;
+using PortfolioService.Models;
 
-namespace PortfolioService.Controllers
+namespace PortfolioService.Controllers;
+
+[ApiController]
+[Route("api/[controller]")]
+public class BlogController : ControllerBase
 {
-    [ApiController]
-    [Route("api/[controller]")]
-    public class BlogController : ControllerBase
+    private readonly BlogDbContext _context;
+    private readonly IMapper _mapper;
+
+    public BlogController(BlogDbContext context, IMapper mapper)
     {
-        private readonly BlogDbContext _context;
-        private readonly IMapper _mapper;
+        _context = context;
+        _mapper = mapper;
+    }
 
-        public BlogController(BlogDbContext context, IMapper mapper)
+    #region GET
+
+    [HttpGet("getAllPosts")]
+    public async Task<IActionResult> GetAllPosts()
+    {
+        bool pinned = Request.Query.ContainsKey("pinned");
+        bool filterVisible = Request.Query.ContainsKey("filter_visible");
+
+        try
         {
-            _context = context;
-            _mapper = mapper;
+            var posts = await _context.Posts
+                .Where(post => !(post.IsHidden && !post.IsDraft))
+                .Where(post => pinned ? post.IsPinned : true)
+                .Where(post => filterVisible ? !post.IsHidden : true)
+                .ToListAsync();
+
+            var postDtos = _mapper.Map<IEnumerable<PostListingDto>>(posts);
+
+            return Ok(postDtos);
         }
-
-        [HttpGet]
-        [LocalOnly]
-        public async Task<IActionResult> Get()
+        catch (Exception e)
         {
-            var service = Request.Query["service"].ToString();
-            if (string.IsNullOrEmpty(service))
+            dynamic response = new
             {
-                return BadRequest(new { message = "Service parameter is required." });
+                message = "An error occurred while fetching posts.",
+            };
+
+            if (Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development")
+            {
+                response = new { response.message, error = e.Message };
             }
 
-            switch (service)
-            {
-                case "getAllVisiblePostListings":
-                    return await GetAllVisiblePostListings();
-                case "getPostById":
-                    var postId = Request.Query["post_id"].ToString();
-
-                    if (string.IsNullOrEmpty(postId))
-                    {
-                        return BadRequest(new { message = "Post ID is required." });
-                    }
-
-                    return await GetPostById(postId);
-                case "getPostByUrlString":
-                    var urlString = Request.Query["url_string"].ToString();
-
-                    if (string.IsNullOrEmpty(urlString))
-                    {
-                        return BadRequest(new { message = "URL string is required." });
-                    }
-
-                    return await GetPostByUrlString(urlString);
-                default:
-                    return BadRequest(new { message = "Invalid service parameter." });
-            }
-        }
-
-        [LocalOnly]
-        private async Task<IActionResult> GetAllVisiblePostListings()
-        {
-            try
-            {
-                var posts = await _context.Posts
-                    .Where(post => !(post.IsHidden && !post.IsDraft))
-                    .ToListAsync();
-
-                var postDtos = _mapper.Map<IEnumerable<PostListingDto>>(posts);
-
-                return Ok(postDtos);
-            }
-            catch (Exception e)
-            {
-                dynamic response = new
-                {
-                    message = "An error occurred while fetching posts.",
-                };
-
-                if (Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development")
-                {
-                    response = new { response.message, error = e.Message };
-                }
-
-                return StatusCode(500, response);
-            }
-        }
-
-        private async Task<IActionResult> GetPostById(string postId)
-        {
-            try
-            {
-                var post = await _context.Posts
-                    .Where(post => post.PostId == postId)
-                    .FirstOrDefaultAsync();
-
-                if (post == null)
-                {
-                    return NotFound(new { message = "Post not found." });
-                }
-
-                Task.Delay(TimeSpan.FromMinutes(10)).GetAwaiter().OnCompleted(() =>
-                {
-                    post.Views += 1;
-                    _context.SaveChangesAsync();
-                });
-
-                var postDto = _mapper.Map<PostDto>(post);
-                return Ok(postDto);
-            }
-            catch (Exception e)
-            {
-                dynamic response = new
-                {
-                    message = "An error occurred while fetching the post.",
-                };
-
-                if (Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development")
-                {
-                    response = new { response.message, error = e.Message };
-                }
-
-                return StatusCode(500, response);
-            }
-        }
-
-        private async Task<IActionResult> GetPostByUrlString(string urlString)
-        {
-            try
-            {
-                var post = await _context.Posts
-                    .Where(post => post.UrlString == urlString)
-                    .FirstOrDefaultAsync();
-
-                if (post == null)
-                {
-                    return NotFound(new { message = "Post not found." });
-                }
-
-                Task.Delay(TimeSpan.FromMinutes(10)).GetAwaiter().OnCompleted(() =>
-                {
-                    post.Views += 1;
-                    _context.SaveChangesAsync();
-                });
-
-                var postDto = _mapper.Map<PostDto>(post);
-                return Ok(postDto);
-            }
-            catch (Exception e)
-            {
-                dynamic response = new
-                {
-                    message = "An error occurred while fetching the post.",
-                };
-
-                if (Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development")
-                {
-                    response = new { response.message, error = e.Message };
-                }
-
-                return StatusCode(500, response);
-            }
+            return StatusCode(500, response);
         }
     }
+
+    [HttpGet("getPostById")]
+    public async Task<IActionResult> GetPostById([FromQuery(Name = "post_id")] string postId)
+    {
+        try
+        {
+            var post = await _context.Posts
+                .Where(post => post.PostId == postId)
+                .FirstOrDefaultAsync();
+
+            if (post == null)
+            {
+                return NotFound(new { message = "Post not found." });
+            }
+
+            _ = Task.Run(async () =>
+            {
+                await Task.Delay(TimeSpan.FromMinutes(10));
+                post.Views += 1;
+                await _context.SaveChangesAsync();
+            });
+
+            var postDto = _mapper.Map<PostDto>(post);
+            return Ok(postDto);
+        }
+        catch (Exception e)
+        {
+            dynamic response = new
+            {
+                message = "An error occurred while fetching the post.",
+            };
+
+            if (Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development")
+            {
+                response = new { response.message, error = e.Message };
+            }
+
+            return StatusCode(500, response);
+        }
+    }
+
+    [HttpGet("getPostByUrlString")]
+    public async Task<IActionResult> GetPostByUrlString([FromQuery(Name = "url_string")] string urlString)
+    {
+        try
+        {
+            var post = await _context.Posts
+                .Where(post => post.UrlString == urlString)
+                .FirstOrDefaultAsync();
+
+            if (post == null)
+            {
+                return NotFound(new { message = "Post not found." });
+            }
+
+            _ = Task.Run(async () =>
+            {
+                await Task.Delay(TimeSpan.FromMinutes(10));
+                post.Views += 1;
+                await _context.SaveChangesAsync();
+            });
+
+            var postDto = _mapper.Map<PostDto>(post);
+            return Ok(postDto);
+        }
+        catch (Exception e)
+        {
+            dynamic response = new
+            {
+                message = "An error occurred while fetching the post.",
+            };
+
+            if (Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development")
+            {
+                response = new { response.message, error = e.Message };
+            }
+
+            return StatusCode(500, response);
+        }
+    }
+
+    #endregion
+
+    #region POST
+
+    [LocalOnly]
+    [HttpPost("createPost")]
+    public async Task<IActionResult> CreatePost([FromBody] PostCreateDto postCreateDto)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(new { message = "Invalid model." });
+        }
+
+        try
+        {
+            var post = _mapper.Map<Post>(postCreateDto);
+            post.PostId = Guid.NewGuid().ToString();
+            post.CreatedAt = DateTime.Now;
+
+            await _context.Posts.AddAsync(post);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Post created successfully." });
+        }
+        catch (Exception e)
+        {
+            dynamic response = new
+            {
+                message = "An error occurred while creating the post.",
+            };
+
+            if (Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development")
+            {
+                response = new { response.message, error = e.Message };
+            }
+
+            return StatusCode(500, response);
+        }
+    }
+
+    #endregion
+
+    #region PUT
+
+    [LocalOnly]
+    [HttpPut("updatePost")]
+    public async Task<IActionResult> UpdatePost([FromBody] PostUpdateDto postUpdateDto, [FromQuery(Name = "post_id")] string postId)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(new { message = "Invalid model." });
+        }
+
+        try
+        {
+            var post = await _context.Posts
+                .Where(post => post.PostId == postId)
+                .FirstOrDefaultAsync();
+
+            if (post == null)
+            {
+                return NotFound(new { message = "Post not found." });
+            }
+
+            post = _mapper.Map(postUpdateDto, post);
+
+            _context.Posts.Update(post);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Post updated successfully." });
+        }
+        catch (Exception e)
+        {
+            dynamic response = new
+            {
+                message = "An error occurred while updating the post.",
+            };
+
+            if (Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development")
+            {
+                response = new { response.message, error = e.Message };
+            }
+
+            return StatusCode(500, response);
+        }
+    }
+
+    #endregion
+
+    #region DELETE
+
+    [LocalOnly]
+    [HttpDelete("deletePost")]
+    public async Task<IActionResult> DeletePost([FromQuery(Name = "post_id")] string postId)
+    {
+        try
+        {
+            var post = await _context.Posts
+                .Where(post => post.PostId == postId)
+                .FirstOrDefaultAsync();
+
+            if (post == null)
+            {
+                return NotFound(new { message = "Post not found." });
+            }
+
+            _context.Posts.Remove(post);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Post deleted successfully." });
+        }
+        catch (Exception e)
+        {
+            dynamic response = new
+            {
+                message = "An error occurred while deleting the post.",
+            };
+
+            if (Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development")
+            {
+                response = new { response.message, error = e.Message };
+            }
+
+            return StatusCode(500, response);
+        }
+    }
+
+    #endregion
 }

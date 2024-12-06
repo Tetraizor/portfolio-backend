@@ -17,11 +17,13 @@ public class Program
         var useHttps = builder.Configuration["BACKEND_USE_HTTPS"] ?? "true";
 
         var httpsPort = builder.Configuration["BACKEND_HTTPS_PORT"] ?? "5000";
-        var httpPort = builder.Configuration["BACKEND_HTTP_PORT"] ?? "5001";
+        var localPort = builder.Configuration["BACKEND_LOCAL_PORT"] ?? "5001";
+        var httpPort = builder.Configuration["BACKEND_HTTP_PORT"] ?? "5002";
 
         builder.WebHost.ConfigureKestrel((options) =>
         {
             options.ListenAnyIP(int.Parse(httpPort));
+            options.ListenAnyIP(int.Parse(localPort));
 
             if (useHttps == "false") return;
 
@@ -59,6 +61,8 @@ public class Program
 
             options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString));
         });
+
+        AppSettings.Initialize(builder.Configuration);
 
         var app = builder.Build();
 

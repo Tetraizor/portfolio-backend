@@ -8,5 +8,7 @@ public class MappingProfile : Profile
     {
         CreateMap<Models.Post, DTOs.Post.PostDto>().ReverseMap();
         CreateMap<Models.Post, DTOs.Post.PostListingDto>().ReverseMap();
+        CreateMap<Models.Post, DTOs.Post.PostCreateDto>().ReverseMap();
+        CreateMap<Models.Post, DTOs.Post.PostUpdateDto>().ReverseMap();
     }
 }
