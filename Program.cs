@@ -62,6 +62,14 @@ public class Program
             options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString));
         });
 
+        builder.Services.AddCors(options =>
+        {
+            options.AddDefaultPolicy(builder =>
+            {
+                builder.SetIsOriginAllowed(origin => new Uri(origin).Host == "localhost");
+            });
+        });
+
         AppSettings.Initialize(builder.Configuration);
 
         var app = builder.Build();
@@ -72,6 +80,8 @@ public class Program
         }
 
         if (useHttps == "true") app.UseHttpsRedirection();
+
+        app.UseCors();
 
         app.MapControllers();
         app.Run();
