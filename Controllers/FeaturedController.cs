@@ -17,8 +17,8 @@ public class FeaturedController : Controller
     [HttpGet("getAllFeaturedItems")]
     public async Task<IActionResult> GetFeaturedItems()
     {
-        var posts = await _context.FeaturedItems.ToListAsync();
+        var featuredItems = await _context.FeaturedItems.ToListAsync();
 
-        return Ok(posts);
+        return Ok(new { featuredItems, count = featuredItems.Count, message = "Featured items fetched successfully." });
     }
 }
