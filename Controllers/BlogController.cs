@@ -39,7 +39,7 @@ public class BlogController : ControllerBase
 
             var postDtos = _mapper.Map<IEnumerable<PostListingDto>>(posts);
 
-            return Ok(postDtos);
+            return Ok(new { posts = postDtos, count = postDtos.Count(), message = "Posts fetched successfully." });
         }
         catch (Exception e)
         {
@@ -79,7 +79,7 @@ public class BlogController : ControllerBase
             });
 
             var postDto = _mapper.Map<PostDto>(post);
-            return Ok(postDto);
+            return Ok(new { post = postDto, message = "Post fetched successfully." });
         }
         catch (Exception e)
         {
@@ -119,7 +119,7 @@ public class BlogController : ControllerBase
             });
 
             var postDto = _mapper.Map<PostDto>(post);
-            return Ok(postDto);
+            return Ok(new { post = postDto, message = "Post fetched successfully." });
         }
         catch (Exception e)
         {
